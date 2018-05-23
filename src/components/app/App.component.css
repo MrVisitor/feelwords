@@ -1,8 +1,26 @@
 .wrapper {
     max-width: 500px;
+    min-height: 100vh;
     padding: 20px 0;
     margin: 0 auto;
     position: relative;
+    background-color: #F5F6F8;
+}
+
+.app_header {
+    padding: 1em 0.5em;
+    overflow: hidden;
+    display: flex;
+    justify-content: space-between;
+}
+
+.app_header-text {
+    font-size: 1em;
+    color: #4A4A4A;
+}
+
+.app_header-progress {
+
 }
 
 .konvajs-content {

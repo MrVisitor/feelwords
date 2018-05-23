@@ -10,63 +10,50 @@ export default class Playground extends React.PureComponent {
   static propTypes = {
     currentLevel: PropTypes.number.isRequired,
     success: PropTypes.func.isRequired,
+    setProgress: PropTypes.func.isRequired,
+    words: PropTypes.array.isRequired,
+    matrix: PropTypes.array.isRequired,
   }
 
   static defaultProps = {
     currentLevel: 1,
-    success: () => {}
+    success: () => {},
+    setProgress: () => {}
   }
 
   static maxLevel = data.length - 1;
 
-  isSelectionProcess = false
+  isSelectionProcess = false;
 
   state = {
+    lastSelectedStek: "",
     selected: [],
     guessed: [],
     nextColor: Konva.Util.getRandomColor(),
-  }
-
-  get data() {
-    return data[this.props.currentLevel - 1 || 0][0]
-  }
-
-  /**
-   * @returns {Array<Object>}
-   */
-  get words() {
-    return this.data.words
-  }
-
-  /**
-   * @returns {Array<Object>}
-   */
-  get matrix() {
-    return this.data.matrix
   }
 
   /**
    * @returns {Number}
    */
   get width() {
-    if (window.innerWidth > window.innerHeight) return this.height
-    return window.innerWidth > 500 ? 500 : window.innerWidth
+    if (window.innerWidth > window.innerHeight) return this.height;
+    return window.innerWidth > 500 ? 500 : window.innerWidth;
   }
 
   /**
    * @returns {Number}
    */
   get height() {
-    if (window.innerHeight > window.innerWidth) return this.width
-    return window.innerHeight > 500 ? 500 : window.innerHeight
+    if (window.innerHeight > window.innerWidth) return this.width;
+    return window.innerHeight > 500 ? 500 : window.innerHeight;
   }
 
   /**
    * @returns {Number}
    */
   get size() {
-    const size = this.width > this.height ? this.height : this.width
-    return size / this.matrix.length
+    const size = this.width > this.height ? this.height : this.width;
+    return size / this.props.matrix.length;
   }
 
   componentDidMount() {
@@ -75,7 +62,7 @@ export default class Playground extends React.PureComponent {
   
   componentDidUpdate(prevProps, prevState) {
     if (prevProps.currentLevel !== this.props.currentLevel) {
-      this.setState({ selected: [], guessed: [] })
+      this.setState({ selected: [], guessed: [], lastSelectedStek: '' })
     }
   }
   
@@ -83,44 +70,88 @@ export default class Playground extends React.PureComponent {
     window.removeEventListener('resize', this.onResize, { passive: true });
   }
 
+  /**
+   * Rapid repainting for resize
+   * @function
+   */
   onResize = () => this.forceUpdate()
 
   /**
+   * Searches for an element and adds it to the selected array
    * @param {Number} x
    * @param {Number} y
+   * @function
    */
   findItem = (x, y) => {
     const indexX = x/this.size
     const indexY = y/this.size
-    const row = this.matrix[indexY]
+    const row = this.props.matrix[indexY]
     const item = row[indexX]
 
     if (this.state.selected.findIndex(el => el.key === item.key) == -1) {
-      this.setState({
-        selected: [...this.state.selected, item]
-      })
+      this.setState({ selected: [...this.state.selected, item] })
     }
   }
 
+  /**
+   * Checks the progress status
+   * @function
+   */
   progressCheck = () => {
-    if (this.state.guessed.length === this.words.length) {
+    this.props.setProgress(this.state.guessed.length)
+
+    if (this.state.guessed.length === this.props.words.length) {
       this.props.success()
     }
   }
 
+  /**
+   * Validates the selected stack
+   * @function
+   */
   runValidator = () => {
+    let needToClearLastStak = false
     const stack = this.state.selected.map(item => item.key).join('_')
-    const index = this.words.findIndex(item => item.stack === stack)
+    const index = this.props.words.findIndex(item => item.stack === stack)
+    let lastSelectedStek = stack
 
     if (index > -1) return this.setState({
       guessed: [...this.state.guessed, { stack, color: this.state.nextColor }],
       nextColor: Konva.Util.getRandomColor(),
+      lastSelectedStek: '',
       selected: []
     }, this.progressCheck)
 
-    this.setState({ selected: [] })
+    if (this.state.lastSelectedStek && this.state.lastSelectedStek === lastSelectedStek) {
+
+      let word = stack.split("_").reduce((letters, key, index) => {
+
+        let item = this.props.matrix.reduce((result, row, index) => {
+          let indexItem = row.findIndex(item => item.key === key)
+          return indexItem > -1 ? row[indexItem] : result
+        }, null)
+
+        return item ? `${letters}${item.letter}` : letters;
+      }, '')
+
+      let similarWordIndex = this.props.words.findIndex(item => item.value === word)
+
+      if (similarWordIndex > -1) {
+        alert(`Попробуйте ввести слово "${word}" другим способом`)
+      } else {
+        alert(`${word} - такое слово не было загадано`)
+      }
+
+      lastSelectedStek = ""
+    }
+
+    this.setState({ selected: [], lastSelectedStek })
   }
 
+  /**
+   * Changes the flag to a positive value
+   * @function
+   */
   onStart = ({ target: { attrs } }) => {
     this.isSelectionProcess = true
   }
@@ -135,6 +166,10 @@ export default class Playground extends React.PureComponent {
     }
   }
 
+  /**
+   * Calls a check and сhanges the flag to a negative value
+   * @function
+   */
   onEnd = () => {
     if (this.isSelectionProcess) {
       this.isSelectionProcess = false
@@ -146,6 +181,7 @@ export default class Playground extends React.PureComponent {
    * @param {Object} props
    * @param {Number} props.index
    * @param {Object} props.item
+   * @function
    */
   renderLetter = (index, props) => (
     <Text
@@ -169,6 +205,7 @@ export default class Playground extends React.PureComponent {
    * @param {Object} props.item
    * @param {String} props.item.key
    * @param {String} props.item.letter
+   * @function
    */
   renderSquare = (index, props) => {
     const fill = (function() {
@@ -205,6 +242,7 @@ export default class Playground extends React.PureComponent {
   /**
    * @param {Array} row
    * @param {Number} index
+   * @function
    */
   renderRow = (row, index) => [
     row.map((...args) => this.renderSquare(index, {
@@ -231,7 +269,7 @@ export default class Playground extends React.PureComponent {
         onMouseMove={this.onMove}
         onMouseUp={this.onEnd}
       >
-        { this.matrix.map(this.renderRow) }
+        { this.props.matrix.map(this.renderRow) }
       </Layer>
     </Stage>
   )
